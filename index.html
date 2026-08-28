@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документы для печати</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- СТРАНИЦА ВХОДА -->
+    <div id="loginPage" class="page active">
+        <div class="login-container">
+            <div class="login-box">
+                <div class="logo">📄</div>
+                <h1>Документы</h1>
+                <p class="subtitle">Вход в личный кабинет</p>
+                
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label>Выберите пользователя</label>
+                        <select id="loginUser" class="form-select">
+                            <option value="user1">Акмаль (Поставщик)</option>
+                            <option value="user2">Рамзиддин (Менеджер)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="loginPassword" placeholder="Введите пароль" required>
+                    </div>
+                    <button type="submit" class="btn-primary">🔑 Войти</button>
+                </form>
+                
+                <p class="hint">🔐 Пароль сохраняется в браузере</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЛИЧНЫЙ КАБИНЕТ -->
+    <div id="dashboardPage" class="page">
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h2>📋 Документы</h2>
+                </div>
+                <div class="header-right">
+                    <span class="user-badge" id="userNameDisplay">Пользователь</span>
+                    <button class="settings-btn" onclick="toggleSettings()" title="Настройки">⚙️</button>
+                    <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="container">
+                <!-- Баннер -->
+                <div class="role-banner" id="roleBanner">
+                    <div class="banner-icon">📦</div>
+                    <div>
+                        <p id="roleName" style="font-weight: 700; font-size: 1.2rem;">Акмаль</p>
+                        <p id="roleDescription">Загружайте документы для печати</p>
+                    </div>
+                </div>
+
+                <!-- НАСТРОЙКИ -->
+                <div class="settings-panel" id="settingsPanel">
+                    <h3>⚙️ Настройки</h3>
+                    
+                    <div class="settings-section">
+                        <h4>🎨 Тема</h4>
+                        <div class="theme-options">
+                            <button class="theme-btn theme-dark-orange" onclick="setTheme('dark-orange')">
+                                <span class="theme-preview"></span>
+                                Темно-оранжевая
+                            </button>
+                            <button class="theme-btn theme-blue" onclick="setTheme('blue')">
+                                <span class="theme-preview"></span>
+                                Бело-синяя
+                            </button>
+                            <button class="theme-btn theme-dark-green" onclick="setTheme('dark-green')">
+                                <span class="theme-preview"></span>
+                                Темно-зеленая
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>🔑 Смена пароля</h4>
+                        <form onsubmit="changePassword(event)">
+                            <div class="form-group">
+                                <label>Текущий пароль</label>
+                                <input type="password" id="currentPassword" placeholder="Введите текущий пароль" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Новый пароль (минимум 4 символа)</label>
+                                <input type="password" id="newPassword" placeholder="Введите новый пароль" minlength="4" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Подтвердите новый пароль</label>
+                                <input type="password" id="newPasswordConfirm" placeholder="Повторите новый пароль" required>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: auto; padding: 10px 30px;">🔄 Сменить пароль</button>
+                        </form>
+                    </div>
+                    
+                    <button class="close-settings" onclick="toggleSettings()">✕ Закрыть настройки</button>
+                </div>
+
+                <!-- ЗАГРУЗКА ДОКУМЕНТОВ -->
+                <div class="upload-section">
+                    <h3>📎 Загрузить документ</h3>
+                    <form id="uploadForm" onsubmit="handleUpload(event)">
+                        <div class="form-group">
+                            <label for="fileInput">Выберите PDF-файл</label>
+                            <input type="file" id="fileInput" accept=".pdf" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="descriptionInput">Описание документа</label>
+                            <input type="text" id="descriptionInput" placeholder="Например: Акт №5, QR-код..." required>
+                        </div>
+                        <button type="submit" class="btn-primary">📤 Отправить</button>
+                    </form>
+                </div>
+
+                <!-- ПОИСК И СОРТИРОВКА -->
+                <div class="tools-section">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="🔍 Поиск по документам..." oninput="filterDocuments()">
+                    </div>
+                    <div class="sort-box">
+                        <button class="sort-btn" onclick="toggleSort()" id="sortBtn">
+                            📅 Сортировка: по новым
+                        </button>
+                    </div>
+                </div>
+
+                <!-- СПИСОК ДОКУМЕНТОВ -->
+                <div class="documents-section">
+                    <div class="section-header">
+                        <h3>📂 Мои документы</h3>
+                        <span class="doc-count" id="docCount">0</span>
+                    </div>
+                    <div id="documentsList" class="documents-grid">
+                        <div class="empty-state">
+                            <span class="empty-icon">📭</span>
+                            <p>Пока нет загруженных документов</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ЧАТ -->
+                <div class="chat-section">
+                    <div class="chat-header" onclick="toggleChat()">
+                        <h3>💬 Чат с другом</h3>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <button class="clear-chat-btn" onclick="event.stopPropagation(); clearChat()" title="Очистить чат">
+                                🗑 Очистить
+                            </button>
+                            <span class="chat-toggle" id="chatToggle">▼</span>
+                        </div>
+                    </div>
+                    <div class="chat-body" id="chatBody">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-empty">
+                                <p>Напишите первое сообщение 📝</p>
+                            </div>
+                        </div>
+                        <form class="chat-input" onsubmit="sendMessage(event)">
+                            <input type="text" id="chatInput" placeholder="Введите сообщение..." required>
+                            <button type="submit">📤</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
