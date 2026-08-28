@@ -30,7 +30,8 @@
                     <button type="submit" class="btn-primary">🔑 Войти</button>
                 </form>
                 
-                <p class="hint">🔐 Пароль сохраняется в браузере</p>
+                <p class="hint">🔐 Данные синхронизируются между устройствами</p>
+                <p class="hint" style="font-size: 0.7rem; color: #bbb;">Пароль по умолчанию: 1234</p>
             </div>
         </div>
     </div>
@@ -131,6 +132,9 @@
                             📅 Сортировка: по новым
                         </button>
                     </div>
+                    <button class="sync-btn" onclick="syncData()" title="Синхронизировать с облаком">
+                        🔄 Синхронизация
+                    </button>
                 </div>
 
                 <!-- СПИСОК ДОКУМЕНТОВ -->
@@ -142,7 +146,7 @@
                     <div id="documentsList" class="documents-grid">
                         <div class="empty-state">
                             <span class="empty-icon">📭</span>
-                            <p>Пока нет загруженных документов</p>
+                            <p>Загрузка данных...</p>
                         </div>
                     </div>
                 </div>
@@ -161,7 +165,7 @@
                     <div class="chat-body" id="chatBody">
                         <div class="chat-messages" id="chatMessages">
                             <div class="chat-empty">
-                                <p>Напишите первое сообщение 📝</p>
+                                <p>Загрузка сообщений...</p>
                             </div>
                         </div>
                         <form class="chat-input" onsubmit="sendMessage(event)">

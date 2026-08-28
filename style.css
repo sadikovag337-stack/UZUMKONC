@@ -372,6 +372,28 @@ body {
     background: #f0f2ff;
 }
 
+.sync-btn {
+    padding: 10px 20px;
+    border: 2px solid #e8e8f0;
+    border-radius: 12px;
+    background: #fafaff;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.3s;
+    white-space: nowrap;
+}
+
+.sync-btn:hover {
+    border-color: #28a745;
+    background: #e8f5e9;
+    color: #28a745;
+}
+
+.sync-btn.syncing {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 /* ДОКУМЕНТЫ */
 .documents-section {
     background: white;
@@ -651,6 +673,29 @@ body {
     transform: scale(1.05);
 }
 
+/* СТАТУС СИНХРОНИЗАЦИИ */
+.sync-status {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    background: #2d2d2d;
+    color: white;
+    font-weight: 500;
+    z-index: 1000;
+    animation: slideDown 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.sync-status.success {
+    background: #28a745;
+}
+
+.sync-status.error {
+    background: #dc3545;
+}
+
 /* ТЕМЫ */
 
 /* ТЕМНО-ОРАНЖЕВАЯ */
@@ -763,13 +808,19 @@ body.theme-dark-orange .theme-btn {
 body.theme-dark-orange .theme-btn:hover {
     background: #5a3d2a;
 }
-body.theme-dark-orange .sort-btn {
+body.theme-dark-orange .sort-btn,
+body.theme-dark-orange .sync-btn {
     background: #3d2b1e;
     border-color: #5a3d2a;
     color: #f0d4b0;
 }
 body.theme-dark-orange .sort-btn:hover {
     background: #5a3d2a;
+}
+body.theme-dark-orange .sync-btn:hover {
+    border-color: #28a745;
+    background: #2d4d2d;
+    color: #6aaa6a;
 }
 body.theme-dark-orange .chat-header {
     background: #3d2b1e;
@@ -829,6 +880,11 @@ body.theme-blue .doc-card:hover {
 body.theme-blue .doc-count {
     background: #e8f0fe;
     color: #1a73e8;
+}
+body.theme-blue .sync-btn:hover {
+    border-color: #28a745;
+    background: #e8f5e9;
+    color: #28a745;
 }
 
 /* ТЕМНО-ЗЕЛЕНАЯ */
@@ -941,13 +997,19 @@ body.theme-dark-green .theme-btn {
 body.theme-dark-green .theme-btn:hover {
     background: #2d5a2d;
 }
-body.theme-dark-green .sort-btn {
+body.theme-dark-green .sort-btn,
+body.theme-dark-green .sync-btn {
     background: #1a3d1a;
     border-color: #2d5a2d;
     color: #a0d8a0;
 }
 body.theme-dark-green .sort-btn:hover {
     background: #2d5a2d;
+}
+body.theme-dark-green .sync-btn:hover {
+    border-color: #28a745;
+    background: #1a4d1a;
+    color: #6aaa6a;
 }
 body.theme-dark-green .chat-header {
     background: #1a3d1a;
@@ -1035,5 +1097,13 @@ body.theme-dark-green .clear-chat-btn:hover {
     
     .chat-message {
         max-width: 85%;
+    }
+
+    .sync-status {
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+        left: 20px;
+        text-align: center;
     }
 }

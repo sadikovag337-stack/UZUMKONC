@@ -1,3 +1,10 @@
+// ===== КОНФИГУРАЦИЯ JSONBIN =====
+// ТОЛЬКО ЗДЕСЬ МЕНЯЙТЕ! ВСТАВЬТЕ СВОЙ API KEY
+const CONFIG = {
+    BIN_ID: '6a916c28da38895dfe1be603',  // УЖЕ ВСТАВЛЕН
+    API_KEY: '$2a$10$rI2x9qva3go7LWV0fOjuR.BxNY6nScpawDDyHJpN13ydqq.W4rOZq'   // 👈 ТОЛЬКО ЭТО МЕНЯЙТЕ!
+};
+
 // ===== ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ =====
 const users = {
     user1: { 
@@ -18,59 +25,141 @@ const users = {
 
 let currentUser = null;
 let documents = [];
+let chatMessages = [];
 let currentTheme = 'blue';
 let sortAscending = false;
 let searchQuery = '';
-let chatMessages = [];
 
-// ===== ЗАГРУЗКА/СОХРАНЕНИЕ =====
-function loadData() {
-    const savedDocs = localStorage.getItem('documents');
-    if (savedDocs) {
-        try {
-            documents = JSON.parse(savedDocs);
-        } catch {
-            documents = [];
+// ===== РАБОТА С JSONBIN =====
+async function loadFromCloud() {
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.BIN_ID}/latest`, {
+            headers: {
+                'X-Master-Key': CONFIG.API_KEY
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки данных');
         }
-    }
-    
-    const savedChats = localStorage.getItem('chatMessages');
-    if (savedChats) {
-        try {
-            chatMessages = JSON.parse(savedChats);
-        } catch {
-            chatMessages = [];
+        
+        const data = await response.json();
+        const record = data.record;
+        
+        if (record) {
+            documents = record.documents || [];
+            chatMessages = record.chatMessages || [];
+            
+            if (record.passwords) {
+                localStorage.setItem('userPasswords', JSON.stringify(record.passwords));
+            }
+            
+            return true;
         }
+        return false;
+    } catch (error) {
+        console.error('Ошибка загрузки из облака:', error);
+        return false;
     }
-    
-    const theme = localStorage.getItem('theme');
-    if (theme) {
-        currentTheme = theme;
-        document.body.className = 'theme-' + theme;
-    }
-    
-    const passwords = localStorage.getItem('userPasswords');
-    if (!passwords) {
-        const defaultPasswords = {
-            user1: '1234',
-            user2: '1234'
+}
+
+async function saveToCloud() {
+    try {
+        const data = {
+            documents: documents,
+            chatMessages: chatMessages,
+            passwords: JSON.parse(localStorage.getItem('userPasswords') || '{}'),
+            lastUpdated: new Date().toISOString()
         };
-        localStorage.setItem('userPasswords', JSON.stringify(defaultPasswords));
+        
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': CONFIG.API_KEY
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка сохранения данных');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Ошибка сохранения в облако:', error);
+        return false;
     }
 }
 
-function saveDocuments() {
-    localStorage.setItem('documents', JSON.stringify(documents));
+async function syncData(showStatus = true) {
+    const syncBtn = document.querySelector('.sync-btn');
+    if (syncBtn) {
+        syncBtn.classList.add('syncing');
+        syncBtn.textContent = '⏳ Синхронизация...';
+    }
+    
+    if (showStatus) {
+        showSyncStatus('🔄 Синхронизация данных...', 'loading');
+    }
+    
+    const loaded = await loadFromCloud();
+    
+    if (loaded) {
+        const saved = await saveToCloud();
+        
+        if (saved) {
+            showSyncStatus('✅ Данные синхронизированы!', 'success');
+            renderDocuments();
+            renderChatMessages();
+            updateDocCount();
+        } else {
+            showSyncStatus('❌ Ошибка сохранения данных', 'error');
+        }
+    } else {
+        const saved = await saveToCloud();
+        if (saved) {
+            showSyncStatus('✅ Данные сохранены в облаке!', 'success');
+        } else {
+            showSyncStatus('❌ Ошибка синхронизации', 'error');
+        }
+    }
+    
+    if (syncBtn) {
+        syncBtn.classList.remove('syncing');
+        syncBtn.textContent = '🔄 Синхронизация';
+    }
 }
 
-function saveChatMessages() {
-    localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+function showSyncStatus(message, type = 'info') {
+    const existing = document.querySelector('.sync-status');
+    if (existing) existing.remove();
+    
+    const status = document.createElement('div');
+    status.className = `sync-status ${type}`;
+    status.textContent = message;
+    document.body.appendChild(status);
+    
+    setTimeout(() => {
+        status.style.opacity = '0';
+        status.style.transition = '0.5s';
+        setTimeout(() => status.remove(), 500);
+    }, 3000);
 }
 
-function saveTheme(theme) {
-    localStorage.setItem('theme', theme);
+// ===== АВТО-СИНХРОНИЗАЦИЯ =====
+let autoSyncInterval = null;
+
+function startAutoSync() {
+    if (autoSyncInterval) clearInterval(autoSyncInterval);
+    autoSyncInterval = setInterval(() => {
+        if (currentUser) {
+            syncData(false);
+        }
+    }, 30000);
 }
 
+// ===== ПАРОЛИ =====
 function getPasswords() {
     const data = localStorage.getItem('userPasswords');
     return data ? JSON.parse(data) : {};
@@ -78,23 +167,28 @@ function getPasswords() {
 
 function savePasswords(passwords) {
     localStorage.setItem('userPasswords', JSON.stringify(passwords));
+    if (currentUser) {
+        saveToCloud();
+    }
 }
 
 // ===== ВХОД =====
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
     
     const userId = document.getElementById('loginUser').value;
     const password = document.getElementById('loginPassword').value;
     
+    await loadFromCloud();
+    
     const passwords = getPasswords();
     
     if (!passwords[userId]) {
-        alert('❌ Пользователь не зарегистрирован! Обратитесь к администратору.');
-        return;
-    }
-    
-    if (passwords[userId] !== password) {
+        passwords[userId] = password;
+        savePasswords(passwords);
+        await saveToCloud();
+        alert('✅ Пользователь создан! Добро пожаловать!');
+    } else if (passwords[userId] !== password) {
         alert('❌ Неверный пароль!');
         return;
     }
@@ -114,10 +208,15 @@ function login(userId) {
     document.getElementById('roleDescription').textContent = currentUser.description;
     document.querySelector('.banner-icon').textContent = currentUser.icon;
 
-    loadData();
+    const theme = localStorage.getItem('theme');
+    if (theme) {
+        currentTheme = theme;
+        document.body.className = 'theme-' + theme;
+    }
+
     renderDocuments();
-    updateDocCount();
     renderChatMessages();
+    updateDocCount();
 
     const banner = document.getElementById('roleBanner');
     if (currentUser.role === 'Поставщик') {
@@ -125,11 +224,17 @@ function login(userId) {
     } else {
         banner.style.background = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
     }
+    
+    startAutoSync();
 }
 
 // ===== ВЫХОД =====
 function logout() {
     currentUser = null;
+    if (autoSyncInterval) {
+        clearInterval(autoSyncInterval);
+        autoSyncInterval = null;
+    }
     document.getElementById('dashboardPage').classList.remove('active');
     document.getElementById('loginPage').classList.add('active');
     document.getElementById('uploadForm').reset();
@@ -146,7 +251,7 @@ function toggleSettings() {
 function setTheme(theme) {
     currentTheme = theme;
     document.body.className = 'theme-' + theme;
-    saveTheme(theme);
+    localStorage.setItem('theme', theme);
     document.getElementById('settingsPanel').classList.remove('active');
     showNotification('🎨 Тема изменена');
 }
@@ -186,7 +291,7 @@ function changePassword(event) {
 }
 
 // ===== ЗАГРУЗКА ФАЙЛА =====
-function handleUpload(event) {
+async function handleUpload(event) {
     event.preventDefault();
 
     if (!currentUser) {
@@ -228,27 +333,36 @@ function handleUpload(event) {
     };
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         newDoc.fileData = e.target.result;
         documents.unshift(newDoc);
-        saveDocuments();
-        renderDocuments();
-        updateDocCount();
-        document.getElementById('uploadForm').reset();
-        showNotification('✅ Документ "' + file.name + '" успешно загружен!');
+        
+        const saved = await saveToCloud();
+        if (saved) {
+            renderDocuments();
+            updateDocCount();
+            document.getElementById('uploadForm').reset();
+            showNotification('✅ Документ "' + file.name + '" загружен и синхронизирован!');
+        } else {
+            showNotification('⚠️ Документ сохранён локально, но не синхронизирован');
+        }
     };
     reader.readAsDataURL(file);
 }
 
 // ===== УДАЛЕНИЕ =====
-function deleteDoc(id) {
+async function deleteDoc(id) {
     if (!confirm('🗑 Удалить этот документ?')) return;
     
     documents = documents.filter(d => d.id !== id);
-    saveDocuments();
-    renderDocuments();
-    updateDocCount();
-    showNotification('🗑 Документ удалён');
+    const saved = await saveToCloud();
+    if (saved) {
+        renderDocuments();
+        updateDocCount();
+        showNotification('🗑 Документ удалён');
+    } else {
+        showNotification('❌ Ошибка удаления документа');
+    }
 }
 
 // ===== СКАЧИВАНИЕ =====
@@ -343,15 +457,19 @@ function toggleChat() {
     }
 }
 
-function clearChat() {
+async function clearChat() {
     if (!confirm('🗑 Очистить всю историю чата?')) return;
     chatMessages = [];
-    saveChatMessages();
-    renderChatMessages();
-    showNotification('🗑 Чат очищен');
+    const saved = await saveToCloud();
+    if (saved) {
+        renderChatMessages();
+        showNotification('🗑 Чат очищен');
+    } else {
+        showNotification('❌ Ошибка очистки чата');
+    }
 }
 
-function sendMessage(event) {
+async function sendMessage(event) {
     event.preventDefault();
     
     if (!currentUser) {
@@ -377,10 +495,14 @@ function sendMessage(event) {
     };
     
     chatMessages.push(message);
-    saveChatMessages();
-    renderChatMessages();
-    input.value = '';
-    scrollChatToBottom();
+    const saved = await saveToCloud();
+    if (saved) {
+        renderChatMessages();
+        input.value = '';
+        scrollChatToBottom();
+    } else {
+        showNotification('❌ Ошибка отправки сообщения');
+    }
 }
 
 function renderChatMessages() {
@@ -451,4 +573,8 @@ function showNotification(message) {
 }
 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
-loadData();
+loadFromCloud().then(() => {
+    renderDocuments();
+    renderChatMessages();
+    updateDocCount();
+});
