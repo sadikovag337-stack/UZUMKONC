@@ -1,9 +1,47 @@
 // ===== КОНФИГУРАЦИЯ JSONBIN =====
-// ТОЛЬКО ЗДЕСЬ МЕНЯЙТЕ! ВСТАВЬТЕ СВОЙ API KEY
 const CONFIG = {
-    BIN_ID: '6a916c28da38895dfe1be603',  // УЖЕ ВСТАВЛЕН
-    API_KEY: '$2a$10$rI2x9qva3go7LWV0fOjuR.BxNY6nScpawDDyHJpN13ydqq.W4rOZq'   // 👈 ТОЛЬКО ЭТО МЕНЯЙТЕ!
+    BIN_ID: '6a916c28da38895dfe1be603',
+    API_KEY: '$2a$10$p2pUvBHmulzKE97z0AgOyePWsDHTvHOUSQbWm8XBZqEy/L7AiLpR6'  // ✅ ВАШ API KEY
 };
+
+// ===== ПРОВЕРКА ПОДКЛЮЧЕНИЯ =====
+async function testConnection() {
+    console.log('🔍 Проверка подключения к JSONBin...');
+    console.log('Bin ID:', CONFIG.BIN_ID);
+    console.log('API Key:', CONFIG.API_KEY ? '✅ Установлен' : '❌ НЕ УСТАНОВЛЕН');
+    
+    try {
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${CONFIG.BIN_ID}/latest`, {
+            headers: {
+                'X-Master-Key': CONFIG.API_KEY
+            }
+        });
+        
+        console.log('📡 Статус ответа:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Подключение успешно!', data);
+            return true;
+        } else {
+            const error = await response.text();
+            console.error('❌ Ошибка:', response.status, error);
+            
+            if (response.status === 401) {
+                alert('❌ НЕВЕРНЫЙ API KEY! Проверьте ключ в настройках JSONBin');
+            } else if (response.status === 404) {
+                alert('❌ НЕВЕРНЫЙ BIN ID! Проверьте ID хранилища');
+            } else {
+                alert(`❌ Ошибка ${response.status}: ${error}`);
+            }
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сети:', error);
+        alert('❌ Нет подключения к интернету или JSONBin недоступен');
+        return false;
+    }
+}
 
 // ===== ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ =====
 const users = {
@@ -40,7 +78,7 @@ async function loadFromCloud() {
         });
         
         if (!response.ok) {
-            throw new Error('Ошибка загрузки данных');
+            throw new Error(`Ошибка ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
@@ -58,7 +96,7 @@ async function loadFromCloud() {
         }
         return false;
     } catch (error) {
-        console.error('Ошибка загрузки из облака:', error);
+        console.error('❌ Ошибка загрузки из облака:', error.message);
         return false;
     }
 }
@@ -82,12 +120,14 @@ async function saveToCloud() {
         });
         
         if (!response.ok) {
-            throw new Error('Ошибка сохранения данных');
+            const errorText = await response.text();
+            throw new Error(`Ошибка ${response.status}: ${errorText}`);
         }
         
+        console.log('✅ Данные сохранены в облаке');
         return true;
     } catch (error) {
-        console.error('Ошибка сохранения в облако:', error);
+        console.error('❌ Ошибка сохранения в облако:', error.message);
         return false;
     }
 }
@@ -97,6 +137,17 @@ async function syncData(showStatus = true) {
     if (syncBtn) {
         syncBtn.classList.add('syncing');
         syncBtn.textContent = '⏳ Синхронизация...';
+    }
+    
+    // Проверяем подключение
+    const isConnected = await testConnection();
+    if (!isConnected) {
+        if (syncBtn) {
+            syncBtn.classList.remove('syncing');
+            syncBtn.textContent = '🔄 Синхронизация';
+        }
+        showSyncStatus('❌ Ошибка подключения к облаку', 'error');
+        return;
     }
     
     if (showStatus) {
@@ -156,7 +207,7 @@ function startAutoSync() {
         if (currentUser) {
             syncData(false);
         }
-    }, 30000);
+    }, 60000);
 }
 
 // ===== ПАРОЛИ =====
@@ -178,6 +229,13 @@ async function handleLogin(event) {
     
     const userId = document.getElementById('loginUser').value;
     const password = document.getElementById('loginPassword').value;
+    
+    // Сначала проверяем подключение
+    const isConnected = await testConnection();
+    if (!isConnected) {
+        alert('❌ Не удалось подключиться к облачному хранилищу! Проверьте интернет.');
+        return;
+    }
     
     await loadFromCloud();
     
@@ -337,6 +395,7 @@ async function handleUpload(event) {
         newDoc.fileData = e.target.result;
         documents.unshift(newDoc);
         
+        // Пытаемся сохранить в облако
         const saved = await saveToCloud();
         if (saved) {
             renderDocuments();
@@ -344,7 +403,11 @@ async function handleUpload(event) {
             document.getElementById('uploadForm').reset();
             showNotification('✅ Документ "' + file.name + '" загружен и синхронизирован!');
         } else {
-            showNotification('⚠️ Документ сохранён локально, но не синхронизирован');
+            // Если не удалось сохранить в облако, сохраняем локально
+            renderDocuments();
+            updateDocCount();
+            document.getElementById('uploadForm').reset();
+            showNotification('⚠️ Документ сохранён локально! Нажмите "Синхронизация" для отправки в облако.');
         }
     };
     reader.readAsDataURL(file);
@@ -361,7 +424,7 @@ async function deleteDoc(id) {
         updateDocCount();
         showNotification('🗑 Документ удалён');
     } else {
-        showNotification('❌ Ошибка удаления документа');
+        showNotification('⚠️ Документ удалён локально! Нажмите "Синхронизация" для отправки в облако.');
     }
 }
 
@@ -465,7 +528,7 @@ async function clearChat() {
         renderChatMessages();
         showNotification('🗑 Чат очищен');
     } else {
-        showNotification('❌ Ошибка очистки чата');
+        showNotification('⚠️ Чат очищен локально! Нажмите "Синхронизация" для отправки в облако.');
     }
 }
 
@@ -501,7 +564,10 @@ async function sendMessage(event) {
         input.value = '';
         scrollChatToBottom();
     } else {
-        showNotification('❌ Ошибка отправки сообщения');
+        renderChatMessages();
+        input.value = '';
+        scrollChatToBottom();
+        showNotification('⚠️ Сообщение сохранено локально! Нажмите "Синхронизация".');
     }
 }
 
@@ -573,8 +639,18 @@ function showNotification(message) {
 }
 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
-loadFromCloud().then(() => {
-    renderDocuments();
-    renderChatMessages();
-    updateDocCount();
+// Проверяем подключение при загрузке
+testConnection().then(isConnected => {
+    if (isConnected) {
+        loadFromCloud().then(() => {
+            renderDocuments();
+            renderChatMessages();
+            updateDocCount();
+        });
+    } else {
+        // Если не удалось подключиться, показываем пустые данные
+        renderDocuments();
+        renderChatMessages();
+        updateDocCount();
+    }
 });
